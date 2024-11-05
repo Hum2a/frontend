@@ -35,18 +35,30 @@
 }
 
 .upload-button {
-  background-color: #1976d2;
+  background: linear-gradient(135deg, #ff7e5f, #feb47b); /* Gradient colors */
   color: white;
   font-weight: bold;
   text-transform: uppercase;
-  border-radius: 8px;
-  padding: 10px 15px;
-  transition: background-color 0.3s;
+  border-radius: 90px; /* More rounded for a modern feel */
+  width: 60%;
+  align-self: center;
+  padding: 15px 25px; /* Increased padding for better touch/click area */
+  transition: all 0.4s ease-in-out; /* Smooth animation for hover effect */
+  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+  border: none; /* Removed the default border */
 }
 
 .upload-button:hover {
-  background-color: #0d47a1;
+  background: linear-gradient(135deg, #ff6a4d, #fe9840); /* Slightly darker gradient on hover */
+  box-shadow: 0 15px 20px rgba(0, 0, 0, 0.2); /* More intense shadow on hover */
+  transform: translateY(-3px); /* Slight lift on hover */
 }
+
+.upload-button:active {
+  transform: translateY(1px); /* Button pressed effect */
+  box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+}
+
 
 .message {
   margin-top: 20px;
@@ -56,11 +68,19 @@
 }
 
 .upload-list-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin-top: 30px;
-  color: #444;
+  font-size: 24px; /* Increase font size for better visibility */
+  font-weight: 700; /* Make the font bolder */
+  margin-top: 40px;
+  color: #1a237e; /* Darker, more impactful color */
+  text-align: center; /* Center the text */
+  text-transform: uppercase; /* Make the text uppercase for emphasis */
+  letter-spacing: 1.5px; /* Add spacing between letters for a modern feel */
+  background: linear-gradient(135deg, #64b5f6, #42a5f5); /* Add a gradient background */
+  -webkit-background-clip: text; /* Clip the background to the text */
+  -webkit-text-fill-color: transparent; /* Make the text transparent to show the gradient */
+  margin-bottom: 20px; /* Add some space below the title */
 }
+
 
 .upload-list {
   list-style-type: none;
