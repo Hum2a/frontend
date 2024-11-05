@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Button, TextField, Typography } from '@mui/material';
+import { Button, TextField, Typography, LinearProgress } from '@mui/material';
 import axios from 'axios';
 import '../styles/FileUploadForm.css';
 
 const FileUploadForm = () => {
   const [file, setFile] = useState(null);
+  const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
+  const [loadingProgress, setLoadingProgress] = useState(null); // Initialize as null
   const [localUploads, setLocalUploads] = useState([]);
   const [networkUploads, setNetworkUploads] = useState([]);
 
-  // Fetch all local and network uploads when the component mounts
   useEffect(() => {
     const fetchUploads = async () => {
       try {
@@ -30,39 +31,65 @@ const FileUploadForm = () => {
     setFile(e.target.files[0]);
   };
 
+  const handleNameChange = (e) => {
+    setFileName(e.target.value);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
       setMessage("Please select a file to upload.");
       return;
     }
-
+  
+    // Use the provided name or default to the file's original name without the extension
+    const finalFileName = fileName || file.name.split(".").slice(0, -1).join(".");
+  
     const formData = new FormData();
     formData.append("file", file);
-
+    formData.append("fileName", `${finalFileName}.pdf`); // Append .pdf to the file name
+  
     try {
-      const response = await axios.post("http://localhost:5000/api/upload", formData);
+      setLoadingProgress(0); // Reset and show loading bar
+      const response = await axios.post("http://localhost:5000/api/upload", formData, {
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setLoadingProgress(percentCompleted); // Update progress
+        },
+      });
+      setLoadingProgress(null); // Hide loading bar after upload
       setMessage(response.data.message);
-
-      // Update local and network uploads
-      setLocalUploads((prev) => [...prev, { filename: file.name }]);
+  
+      setLocalUploads((prev) => [...prev, { filename: `${finalFileName}.pdf` }]);
       setNetworkUploads((prev) => [
         ...prev,
-        { filename: file.name, analysis: response.data.analysis },
+        { filename: `${finalFileName}.pdf`, analysis: response.data.analysis },
       ]);
     } catch (error) {
       console.error("Error uploading file:", error);
       setMessage("Error uploading file. Please try again.");
+      setLoadingProgress(null); // Hide loading bar on error
     }
   };
+  
 
   const handleAnalyze = async (filename) => {
     try {
+      setLoadingProgress(0); // Reset and show loading bar
       setMessage(`Analyzing ${filename}...`);
-      const response = await axios.post("http://localhost:5000/api/analyze", { filename });
+      const response = await axios.post(
+        "http://localhost:5000/api/analyze",
+        { filename },
+        {
+          onDownloadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setLoadingProgress(percentCompleted); // Update progress
+          },
+        }
+      );
+      setLoadingProgress(null); // Hide loading bar after analysis
       setMessage(response.data.message);
 
-      // Update the analysis in the network uploads
       setNetworkUploads((prev) =>
         prev.map((upload) =>
           upload.filename === filename ? { ...upload, analysis: response.data.analysis } : upload
@@ -71,6 +98,19 @@ const FileUploadForm = () => {
     } catch (error) {
       console.error("Error analyzing file:", error);
       setMessage("Error analyzing file. Please try again.");
+      setLoadingProgress(null); // Hide loading bar on error
+    }
+  };
+
+  const handleDelete = async (filename) => {
+    try {
+      await axios.delete(`http://localhost:5000/api/delete/${filename}`);
+      setMessage(`Deleted ${filename} successfully.`);
+      setLocalUploads((prev) => prev.filter((upload) => upload.filename !== filename));
+      setNetworkUploads((prev) => prev.filter((upload) => upload.filename !== filename));
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      setMessage("Error deleting file. Please try again.");
     }
   };
 
@@ -80,6 +120,16 @@ const FileUploadForm = () => {
         <span className="highlight-text">Upload</span> Your Pitch Deck
       </Typography>
       <form onSubmit={handleSubmit} className="upload-form">
+        <TextField
+          label="File Name"
+          value={fileName}
+          onChange={handleNameChange}
+          fullWidth
+          variant="outlined"
+          className="file-name-input"
+          placeholder="Enter file name (will be saved as .pdf)"
+          style={{ marginBottom: '20px' }}
+        />
         <TextField
           className="file-input"
           type="file"
@@ -92,8 +142,15 @@ const FileUploadForm = () => {
           Upload
         </Button>
       </form>
+      {loadingProgress !== null && ( // Only show when loadingProgress is not null
+        <LinearProgress
+          variant="determinate"
+          value={loadingProgress}
+          style={{ marginTop: '10px', marginBottom: '10px' }}
+        />
+      )}
       {message && (
-        <Typography className="message" variant="body1">
+        <Typography className="message" variant="body1" style={{ marginTop: '10px' }}>
           {message}
         </Typography>
       )}
@@ -119,6 +176,15 @@ const FileUploadForm = () => {
             >
               Analyze
             </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              className="delete-button"
+              onClick={() => handleDelete(upload.filename)}
+              style={{ marginLeft: '10px' }}
+            >
+              Delete
+            </Button>
           </li>
         ))}
       </ul>
@@ -138,6 +204,15 @@ const FileUploadForm = () => {
               onClick={() => handleAnalyze(upload.filename)}
             >
               Analyze
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              className="delete-button"
+              onClick={() => handleDelete(upload.filename)}
+              style={{ marginLeft: '10px' }}
+            >
+              Delete
             </Button>
           </li>
         ))}
