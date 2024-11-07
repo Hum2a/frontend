@@ -127,3 +127,10 @@
   background-color: #1976d2;
   color: white;
 }
+.file-upload-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
