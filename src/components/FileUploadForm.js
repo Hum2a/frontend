@@ -1,34 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Button, TextField, Typography, LinearProgress } from '@mui/material';
+import { Button, TextField, Typography, LinearProgress, IconButton } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
+import PopUpModal from './PopUpModal'; // Import the PopUpModal component
 import '../styles/FileUploadForm.css';
 
 const FileUploadForm = () => {
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [fileName, setFileName] = useState('');
   const [message, setMessage] = useState('');
-  const [loadingProgress, setLoadingProgress] = useState(null); // Initialize as null
+  const [loadingProgress, setLoadingProgress] = useState(null);
   const [localUploads, setLocalUploads] = useState([]);
   const [networkUploads, setNetworkUploads] = useState([]);
+  const [isModalOpen, setModalOpen] = useState(false); // State for controlling modal visibility
+  const [filenameToDelete, setFilenameToDelete] = useState(null); // Track the file selected for deletion
 
   useEffect(() => {
-    const fetchUploads = async () => {
-      try {
-        const localResponse = await axios.get("http://localhost:5000/api/local-uploads");
-        setLocalUploads(localResponse.data);
-
-        const networkResponse = await axios.get("http://localhost:5000/api/uploads");
-        setNetworkUploads(networkResponse.data);
-      } catch (error) {
-        console.error("Error fetching uploads:", error);
-      }
-    };
-
     fetchUploads();
   }, []);
 
+  const fetchUploads = async () => {
+    try {
+      const localResponse = await axios.get("http://localhost:5000/api/local-uploads");
+      setLocalUploads(localResponse.data);
+
+      const networkResponse = await axios.get("http://localhost:5000/api/uploads");
+      setNetworkUploads(networkResponse.data);
+    } catch (error) {
+      console.error("Error fetching uploads:", error);
+    }
+  };
+
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+    setFiles(Array.from(e.target.files)); // Store all selected files
   };
 
   const handleNameChange = (e) => {
@@ -37,45 +42,49 @@ const FileUploadForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!file) {
-      setMessage("Please select a file to upload.");
+    if (files.length === 0) {
+      setMessage("Please select one or more files to upload.");
       return;
     }
-  
-    // Use the provided name or default to the file's original name without the extension
-    const finalFileName = fileName || file.name.split(".").slice(0, -1).join(".");
-  
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("fileName", `${finalFileName}.pdf`); // Append .pdf to the file name
-  
-    try {
-      setLoadingProgress(0); // Reset and show loading bar
-      const response = await axios.post("http://localhost:5000/api/upload", formData, {
-        onUploadProgress: (progressEvent) => {
-          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setLoadingProgress(percentCompleted); // Update progress
-        },
-      });
-      setLoadingProgress(null); // Hide loading bar after upload
-      setMessage(response.data.message);
-  
-      setLocalUploads((prev) => [...prev, { filename: `${finalFileName}.pdf` }]);
-      setNetworkUploads((prev) => [
-        ...prev,
-        { filename: `${finalFileName}.pdf`, analysis: response.data.analysis },
-      ]);
-    } catch (error) {
-      console.error("Error uploading file:", error);
-      setMessage("Error uploading file. Please try again.");
-      setLoadingProgress(null); // Hide loading bar on error
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const finalFileName = fileName || file.name.split(".").slice(0, -1).join(".");
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("fileName", `${finalFileName}.pdf`);
+
+      try {
+        setLoadingProgress(0);
+        const response = await axios.post("http://localhost:5000/api/upload", formData, {
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setLoadingProgress(percentCompleted);
+          },
+        });
+
+        if (response.data.file_id) {
+          setMessage(`File ${file.name} uploaded successfully`);
+          setLocalUploads((prev) => [...prev, { filename: `${finalFileName}.pdf` }]);
+          setNetworkUploads((prev) => [
+            ...prev,
+            { filename: `${finalFileName}.pdf`, file_id: response.data.file_id, analysis: response.data.analysis },
+          ]);
+        } else {
+          setMessage(`File ${file.name} uploaded, but no file_id received.`);
+        }
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        setMessage(`Error uploading file ${file.name}. Please try again.`);
+      }
+      setLoadingProgress(null);
     }
+    setFiles([]); // Clear files after upload
   };
-  
 
   const handleAnalyze = async (filename) => {
     try {
-      setLoadingProgress(0); // Reset and show loading bar
+      setLoadingProgress(0);
       setMessage(`Analyzing ${filename}...`);
       const response = await axios.post(
         "http://localhost:5000/api/analyze",
@@ -83,11 +92,11 @@ const FileUploadForm = () => {
         {
           onDownloadProgress: (progressEvent) => {
             const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setLoadingProgress(percentCompleted); // Update progress
+            setLoadingProgress(percentCompleted);
           },
         }
       );
-      setLoadingProgress(null); // Hide loading bar after analysis
+      setLoadingProgress(null);
       setMessage(response.data.message);
 
       setNetworkUploads((prev) =>
@@ -98,30 +107,55 @@ const FileUploadForm = () => {
     } catch (error) {
       console.error("Error analyzing file:", error);
       setMessage("Error analyzing file. Please try again.");
-      setLoadingProgress(null); // Hide loading bar on error
+      setLoadingProgress(null);
     }
   };
 
-  const handleDelete = async (filename) => {
+  const handleDeleteClick = (filename) => {
+    setFilenameToDelete(filename); // Set the file to delete
+    setModalOpen(true); // Open the modal
+  };
+
+  const handleDelete = async () => {
     try {
-      await axios.delete(`http://localhost:5000/api/delete/${filename}`);
-      setMessage(`Deleted ${filename} successfully.`);
-      setLocalUploads((prev) => prev.filter((upload) => upload.filename !== filename));
-      setNetworkUploads((prev) => prev.filter((upload) => upload.filename !== filename));
+      if (filenameToDelete) {
+        await axios.delete(`http://localhost:5000/api/delete/${filenameToDelete}`);
+        setMessage(`Deleted ${filenameToDelete} successfully.`);
+        setLocalUploads((prev) => prev.filter((upload) => upload.filename !== filenameToDelete));
+        setNetworkUploads((prev) => prev.filter((upload) => upload.filename !== filenameToDelete));
+        setModalOpen(false); // Close the modal after deletion
+        setFilenameToDelete(null); // Reset the filename to delete
+      }
     } catch (error) {
       console.error("Error deleting file:", error);
       setMessage("Error deleting file. Please try again.");
     }
   };
 
+  const handleModalClose = () => {
+    setModalOpen(false);
+    setFilenameToDelete(null);
+  };
+
   return (
     <div className="file-upload-card">
-      <Typography className="file-upload-title" variant="h5" gutterBottom>
-        <span className="highlight-text">Upload</span> Your Pitch Deck
-      </Typography>
+      <div className="file-upload-header">
+        <Typography className="file-upload-title" variant="h5" gutterBottom>
+          <span className="highlight-text">Upload</span> Your Pitch Decks
+        </Typography>
+        <IconButton onClick={fetchUploads} color="primary">
+          <RefreshIcon />
+        </IconButton>
+        <Tooltip title="Delete All Files">
+          <IconButton onClick={handleDeleteAllClick} color="secondary">
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
+      </div>
+
       <form onSubmit={handleSubmit} className="upload-form">
         <TextField
-          label="File Name"
+          label="File Name (optional)"
           value={fileName}
           onChange={handleNameChange}
           fullWidth
@@ -134,6 +168,7 @@ const FileUploadForm = () => {
           className="file-input"
           type="file"
           fullWidth
+          inputProps={{ multiple: true }}
           onChange={handleFileChange}
           variant="outlined"
           InputLabelProps={{ shrink: true }}
@@ -142,7 +177,8 @@ const FileUploadForm = () => {
           Upload
         </Button>
       </form>
-      {loadingProgress !== null && ( // Only show when loadingProgress is not null
+
+      {loadingProgress !== null && (
         <LinearProgress
           variant="determinate"
           value={loadingProgress}
@@ -180,7 +216,7 @@ const FileUploadForm = () => {
               variant="outlined"
               color="secondary"
               className="delete-button"
-              onClick={() => handleDelete(upload.filename)}
+              onClick={() => handleDeleteClick(upload.filename)} // Trigger the modal on delete click
               style={{ marginLeft: '10px' }}
             >
               Delete
@@ -209,7 +245,7 @@ const FileUploadForm = () => {
               variant="outlined"
               color="secondary"
               className="delete-button"
-              onClick={() => handleDelete(upload.filename)}
+              onClick={() => handleDeleteClick(upload.filename)} // Trigger the modal on delete click
               style={{ marginLeft: '10px' }}
             >
               Delete
@@ -217,6 +253,16 @@ const FileUploadForm = () => {
           </li>
         ))}
       </ul>
+
+      {/* Popup Modal for Delete Confirmation */}
+      <PopUpModal
+        open={isModalOpen}
+        onClose={handleModalClose}
+        onConfirm={handleDelete}
+        title="Are you sure?"
+      >
+        <p>Are you sure you want to delete this file?</p>
+      </PopUpModal>
     </div>
   );
 };
