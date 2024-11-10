@@ -10,10 +10,12 @@ import {
   Paper,
   IconButton,
   Collapse,
+  Tooltip,
 } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import FileCopyIcon from '@mui/icons-material/FileCopy';
 import axios from 'axios';
 import '../styles/CompareWidget.css';
 
@@ -21,6 +23,7 @@ const CompareWidget = () => {
   const [analyses, setAnalyses] = useState([]);
   const [rankedAnalyses, setRankedAnalyses] = useState([]);
   const [expandedRow, setExpandedRow] = useState(null);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     fetchAndRankAnalyses();
@@ -38,11 +41,12 @@ const CompareWidget = () => {
           const overview = overviewResponse.data;
 
           const totalScore = calculateTotalScore(analysis);
-          return { filename, analysis, overview, totalScore };
+          const passesThreshold = totalScore >= 115;
+
+          return { filename, analysis, overview, totalScore, passesThreshold };
         })
       );
 
-      // Sort analyses by total score in descending order
       const rankedData = analysesData.sort((a, b) => b.totalScore - a.totalScore);
       setRankedAnalyses(rankedData);
       setAnalyses(response.data);
@@ -63,6 +67,21 @@ const CompareWidget = () => {
     return totalScore;
   };
 
+  const copyAllSuccessfulPitchDecks = async () => {
+    // Filter passing pitch decks and extract filenames
+    const passingPitchDecks = rankedAnalyses
+      .filter((data) => data.passesThreshold)
+      .map((data) => data.filename.replace("_analysis.json", ".pdf")); // Convert to original filename format
+
+    try {
+      const response = await axios.post("http://localhost:5000/api/copy_successful_pitchdecks", { filenames: passingPitchDecks });
+      setMessage(response.data.message);
+    } catch (error) {
+      console.error("Error copying successful pitch decks:", error);
+      setMessage("Failed to copy successful pitch decks.");
+    }
+  };
+
   const toggleRowExpansion = (filename) => {
     setExpandedRow(expandedRow === filename ? null : filename);
   };
@@ -73,10 +92,20 @@ const CompareWidget = () => {
         <Typography className="compare-widget-title" variant="h5">
           <span className="highlight-text">Compare</span> Analyses
         </Typography>
+        <Tooltip title="Copy All Successful Pitch Decks">
+          <IconButton onClick={copyAllSuccessfulPitchDecks} color="primary">
+            <FileCopyIcon />
+          </IconButton>
+        </Tooltip>
         <IconButton onClick={fetchAndRankAnalyses} color="primary">
           <RefreshIcon />
         </IconButton>
       </div>
+      {message && (
+        <Typography className="message" variant="body1" style={{ marginTop: '10px' }}>
+          {message}
+        </Typography>
+      )}
       <TableContainer component={Paper}>
         <Table>
           <TableHead>
@@ -84,6 +113,7 @@ const CompareWidget = () => {
               <TableCell><strong>Rank</strong></TableCell>
               <TableCell><strong>Pitch Deck</strong></TableCell>
               <TableCell><strong>Total Score</strong></TableCell>
+              <TableCell><strong>Pass/Fail</strong></TableCell>
               <TableCell><strong>Overall Score</strong></TableCell>
               <TableCell></TableCell>
             </TableRow>
@@ -98,6 +128,7 @@ const CompareWidget = () => {
                   <TableCell>{index + 1}</TableCell>
                   <TableCell>{data.filename}</TableCell>
                   <TableCell>{data.totalScore}</TableCell>
+                  <TableCell>{data.passesThreshold ? 'Pass' : 'Fail'}</TableCell>
                   <TableCell>{data.overview.OverallScore || 'N/A'}</TableCell>
                   <TableCell>
                     <IconButton size="small">
@@ -107,7 +138,7 @@ const CompareWidget = () => {
                 </TableRow>
                 
                 <TableRow>
-                  <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={5}>
+                  <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
                     <Collapse in={expandedRow === data.filename} timeout="auto" unmountOnExit>
                       <div style={{ margin: '20px' }}>
                         {/* Overview Section */}

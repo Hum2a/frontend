@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Button, TextField, Typography, LinearProgress, IconButton } from '@mui/material';
+import { Button, TextField, Typography, LinearProgress, IconButton, Tooltip } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import axios from 'axios';
@@ -13,8 +13,9 @@ const FileUploadForm = () => {
   const [loadingProgress, setLoadingProgress] = useState(null);
   const [localUploads, setLocalUploads] = useState([]);
   const [networkUploads, setNetworkUploads] = useState([]);
-  const [isModalOpen, setModalOpen] = useState(false); // State for controlling modal visibility
-  const [filenameToDelete, setFilenameToDelete] = useState(null); // Track the file selected for deletion
+  const [isModalOpen, setModalOpen] = useState(false);
+  const [filenameToDelete, setFilenameToDelete] = useState(null);
+  const [deleteAll, setDeleteAll] = useState(false);
 
   useEffect(() => {
     fetchUploads();
@@ -33,7 +34,7 @@ const FileUploadForm = () => {
   };
 
   const handleFileChange = (e) => {
-    setFiles(Array.from(e.target.files)); // Store all selected files
+    setFiles(Array.from(e.target.files));
   };
 
   const handleNameChange = (e) => {
@@ -79,7 +80,7 @@ const FileUploadForm = () => {
       }
       setLoadingProgress(null);
     }
-    setFiles([]); // Clear files after upload
+    setFiles([]);
   };
 
   const handleAnalyze = async (filename) => {
@@ -111,30 +112,51 @@ const FileUploadForm = () => {
     }
   };
 
+  const handleAnalyzeAll = async () => {
+    setMessage("Analyzing all uploaded files...");
+    for (const upload of localUploads) {
+      await handleAnalyze(upload.filename);
+    }
+    setMessage("All files analyzed successfully.");
+  };
+
   const handleDeleteClick = (filename) => {
-    setFilenameToDelete(filename); // Set the file to delete
-    setModalOpen(true); // Open the modal
+    setFilenameToDelete(filename);
+    setDeleteAll(false);
+    setModalOpen(true);
+  };
+
+  const handleDeleteAllClick = () => {
+    setDeleteAll(true);
+    setModalOpen(true);
   };
 
   const handleDelete = async () => {
     try {
-      if (filenameToDelete) {
+      if (deleteAll) {
+        await axios.delete("http://localhost:5000/api/uploads");
+        setMessage("All files deleted successfully.");
+        setLocalUploads([]);
+        setNetworkUploads([]);
+      } else if (filenameToDelete) {
         await axios.delete(`http://localhost:5000/api/delete/${filenameToDelete}`);
         setMessage(`Deleted ${filenameToDelete} successfully.`);
         setLocalUploads((prev) => prev.filter((upload) => upload.filename !== filenameToDelete));
         setNetworkUploads((prev) => prev.filter((upload) => upload.filename !== filenameToDelete));
-        setModalOpen(false); // Close the modal after deletion
-        setFilenameToDelete(null); // Reset the filename to delete
       }
+      setModalOpen(false);
+      setFilenameToDelete(null);
+      setDeleteAll(false);
     } catch (error) {
-      console.error("Error deleting file:", error);
-      setMessage("Error deleting file. Please try again.");
+      console.error("Error deleting file(s):", error);
+      setMessage("Error deleting file(s). Please try again.");
     }
   };
 
   const handleModalClose = () => {
     setModalOpen(false);
     setFilenameToDelete(null);
+    setDeleteAll(false);
   };
 
   return (
@@ -176,6 +198,13 @@ const FileUploadForm = () => {
         <Button className="upload-button" variant="contained" type="submit">
           Upload
         </Button>
+        <Button
+          variant="contained"
+          onClick={handleAnalyzeAll}
+          className="analyze-all-button"
+        >
+          Analyze All
+        </Button>
       </form>
 
       {loadingProgress !== null && (
@@ -216,7 +245,7 @@ const FileUploadForm = () => {
               variant="outlined"
               color="secondary"
               className="delete-button"
-              onClick={() => handleDeleteClick(upload.filename)} // Trigger the modal on delete click
+              onClick={() => handleDeleteClick(upload.filename)}
               style={{ marginLeft: '10px' }}
             >
               Delete
@@ -245,7 +274,7 @@ const FileUploadForm = () => {
               variant="outlined"
               color="secondary"
               className="delete-button"
-              onClick={() => handleDeleteClick(upload.filename)} // Trigger the modal on delete click
+              onClick={() => handleDeleteClick(upload.filename)}
               style={{ marginLeft: '10px' }}
             >
               Delete
@@ -254,14 +283,13 @@ const FileUploadForm = () => {
         ))}
       </ul>
 
-      {/* Popup Modal for Delete Confirmation */}
       <PopUpModal
         open={isModalOpen}
         onClose={handleModalClose}
         onConfirm={handleDelete}
         title="Are you sure?"
       >
-        <p>Are you sure you want to delete this file?</p>
+        <p>Are you sure you want to {deleteAll ? "delete all files" : "delete this file"}?</p>
       </PopUpModal>
     </div>
   );
