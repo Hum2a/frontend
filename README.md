@@ -1,70 +1,149 @@
-# Getting Started with Create React App
+# Pitch Deck Analyzer
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+This is a full-stack application for analyzing and ranking pitch decks. The application has a React frontend and a Python Flask backend. The backend processes PDF pitch decks and ranks them based on analysis criteria, while the frontend provides a user-friendly interface for uploading, analyzing, and managing pitch decks.
 
-## Available Scripts
+## Table of Contents
+1. [Prerequisites](#prerequisites)
+2. [Project Setup](#project-setup)
+3. [Backend - Python Flask Setup](#backend---python-flask-setup)
+4. [Frontend - React Setup](#frontend---react-setup)
+5. [Running the Application](#running-the-application)
+6. [API Endpoints](#api-endpoints)
+7. [Usage](#usage)
+8. [Troubleshooting](#troubleshooting)
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Prerequisites
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+To run this application, you need:
+- [Node.js](https://nodejs.org/en/download/) (for React frontend)
+- [Python 3.x](https://www.python.org/downloads/) (for Flask backend)
+- [MongoDB](https://www.mongodb.com/try/download/community) (for data storage)
+- [pip](https://pip.pypa.io/en/stable/installation/) (Python package manager)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Project Setup
 
-### `npm test`
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-repository-url/pitch-deck-analyzer.git
+   cd pitch-deck-analyzer
+   ```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+2. The project structure should look like this:
+   ```
+   pitch-deck-analyzer/
+   ├── backend/       # Python Flask backend
+   └── frontend/      # React frontend
+   ```
 
-### `npm run build`
+## Backend - Python Flask Setup
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+1. **Navigate to the backend directory**:
+   ```bash
+   cd backend
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+2. **Install dependencies**:
+   - Set up a virtual environment (optional but recommended):
+     ```bash
+     python -m venv venv
+     source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+     ```
+   - Install Python packages:
+     ```bash
+     pip install -r requirements.txt
+     ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+3. **Configure MongoDB**:
+   - Ensure MongoDB is running on your system.
+   - In `app.py`, adjust the MongoDB connection string as needed:
+     ```python
+     client = MongoClient("mongodb://localhost:27017/")
+     ```
 
-### `npm run eject`
+4. **Set up OpenAI API Key**:
+   - Add your OpenAI API key in `app.py`:
+     ```python
+     openai.api_key = "YOUR_OPENAI_API_KEY"
+     ```
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+5. **Run the Flask server**:
+   ```bash
+   python app.py
+   ```
+   - The server should start on `http://localhost:5000`.
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Frontend - React Setup
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+1. **Navigate to the frontend directory**:
+   ```bash
+   cd ../frontend
+   ```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
 
-## Learn More
+3. **Configure API URL**:
+   - In the frontend source code, ensure all API calls point to `http://localhost:5000` (default Flask server URL).
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+4. **Run the React application**:
+   ```bash
+   npm start
+   ```
+   - The React app should start on `http://localhost:3000`.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+## Running the Application
 
-### Code Splitting
+With both backend and frontend running:
+- Go to `http://localhost:3000` in your browser to view the application.
+- The frontend communicates with the backend at `http://localhost:5000` for API requests.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+## API Endpoints
 
-### Analyzing the Bundle Size
+The backend provides several endpoints for interacting with the pitch decks:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+- **File Upload and Analysis**:
+  - `POST /api/upload`: Upload a new pitch deck (PDF).
+  - `POST /api/analyze`: Analyze an uploaded pitch deck.
+  - `POST /api/round_two_analysis`: Run a detailed analysis on pitch decks.
+  
+- **File Management**:
+  - `GET /api/local-uploads`: List all locally stored uploads.
+  - `DELETE /api/delete/<filename>`: Delete an uploaded file by filename.
+  
+- **Analysis Retrieval and Ranking**:
+  - `GET /api/r2_analyses`: Retrieve all Round 2 analysis files.
+  - `GET /api/r2_analyses/<filename>`: Retrieve the analysis details of a specific pitch deck.
+  
+## Usage
 
-### Making a Progressive Web App
+1. **Upload Pitch Decks**:
+   - Use the upload form on the frontend to select and upload PDF files.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+2. **Analyze Pitch Decks**:
+   - Click the **Analyze** button on individual files to run an analysis on a specific pitch deck.
+   - Click the **Analyze All** button to analyze all uploaded pitch decks in one go.
 
-### Advanced Configuration
+3. **View Rankings**:
+   - The frontend displays a ranked list of pitch decks based on analysis scores.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+4. **Delete Files**:
+   - Delete individual files by clicking the **Delete** button.
+   - Delete all files by clicking the **Delete All** button.
 
-### Deployment
+## Troubleshooting
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+1. **Backend Errors**:
+   - Check if MongoDB is running.
+   - Confirm the OpenAI API key is correctly configured.
+   - Check Flask server logs for errors.
 
-### `npm run build` fails to minify
+2. **Frontend Errors**:
+   - Ensure the frontend API URLs are correct.
+   - Check console logs in the browser for debugging.
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+3. **CORS Issues**:
+   - If CORS errors occur, ensure `flask-cors` is installed and properly configured in `app.py`.
